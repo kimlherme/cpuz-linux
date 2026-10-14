@@ -13,6 +13,7 @@ score and should not be compared directly with the score shown by CPU-Z.
 
 - [Requirements](#requirements)
 - [Build](#build)
+- [NixOS](#nixos)
 - [Run](#run)
 - [Interactive terminal UI](#interactive-terminal-ui)
 - [Options](#options)
@@ -55,6 +56,49 @@ Remove the generated executable with:
 ```sh
 make clean
 ```
+
+## NixOS
+
+With flakes enabled, enter a development shell that provides GCC and GNU Make,
+then build as usual:
+
+```sh
+nix develop
+make
+./cpu-z-bench-linux --help
+```
+
+To build the packaged executable instead:
+
+```sh
+nix build
+./result/bin/cpu-z-bench-linux --help
+```
+
+You can also run it directly from the flake without creating `result`:
+
+```sh
+nix run . -- --help
+```
+
+For a system without flakes enabled, `shell.nix` and `default.nix` are also
+provided. With Nixpkgs available through `<nixpkgs>`, use:
+
+```sh
+nix-shell
+make
+```
+
+Or build the package with `nix-build`:
+
+```sh
+nix-build
+./result/bin/cpu-z-bench-linux --help
+```
+
+`nix develop`, `nix build`, and `nix run` use the `nixpkgs` input in
+`flake.nix`; the first flake command resolves that input if no `flake.lock`
+exists yet.
 
 ## Run
 
