@@ -1,146 +1,142 @@
-# CPU-Z-like benchmark para Linux
+# CPU-Z-like Benchmark for Linux
 
-Benchmark de linha de comando, escrito em C++17, que reproduz parte do formato
-de carga do teste de CPU do CPU-Z 19.01. O programa mede quantos pixels consegue
-processar por segundo em uma imagem gerada por software.
+A C++17 command-line benchmark that reproduces part of the workload format used
+by the CPU test in CPU-Z 19.01. It measures how many pixels per second the
+software-rendered workload can process.
 
-O projeto é uma implementação independente e escalar. Os detalhes completos do
-algoritmo original não estão disponíveis nesta reconstrução; portanto, o
-resultado serve para experimentar e comparar execuções deste programa, mas não
-é uma pontuação oficial do CPU-Z nem deve ser comparado diretamente com a
-pontuação exibida pelo CPU-Z.
+This is an independent scalar implementation. The full details of the original
+algorithm were not recovered, so this project is useful for experimentation
+and comparing runs of this implementation. Its score is not an official CPU-Z
+score and should not be compared directly with the score shown by CPU-Z.
 
-## Conteúdo
+## Contents
 
-- [Requisitos](#requisitos)
-- [Compilar](#compilar)
-- [Executar](#executar)
-- [Interface interativa (TUI)](#interface-interativa-tui)
-- [Opções](#opções)
-- [Entender o resultado](#entender-o-resultado)
-- [Como o teste funciona](#como-o-teste-funciona)
-- [Limitações e comparação de resultados](#limitações-e-comparação-de-resultados)
-- [Solução de problemas](#solução-de-problemas)
+- [Requirements](#requirements)
+- [Build](#build)
+- [Run](#run)
+- [Interactive terminal UI](#interactive-terminal-ui)
+- [Options](#options)
+- [Understanding the output](#understanding-the-output)
+- [How the benchmark works](#how-the-benchmark-works)
+- [Limitations and comparing results](#limitations-and-comparing-results)
+- [Troubleshooting](#troubleshooting)
 
-## Requisitos
+## Requirements
 
 - Linux
-- Compilador C++ com suporte a C++17, como GCC ou Clang
-- `make` (opcional; também é possível compilar com um comando direto)
-- Suporte a threads POSIX, normalmente fornecido pela biblioteca padrão do Linux
+- A C++ compiler with C++17 support, such as GCC or Clang
+- `make` (optional; you can also compile with a direct command)
+- POSIX thread support, usually provided by the Linux standard library
 
-Em Debian e Ubuntu, instale as ferramentas de compilação com:
+On Debian or Ubuntu, install the build tools with:
 
 ```sh
 sudo apt update
 sudo apt install build-essential
 ```
 
-## Compilar
+## Build
 
-Na raiz do repositório:
+From the repository root:
 
 ```sh
 make
 ```
 
-O executável será criado como `cpu-z-bench-linux`. Para compilar sem `make`:
+This creates the `cpu-z-bench-linux` executable. To compile without `make`:
 
 ```sh
 g++ -O3 -std=c++17 -Wall -Wextra -Wpedantic -ffp-contract=off -pthread \
   cpu-z-bench-linux.cpp -o cpu-z-bench-linux
 ```
 
-Para apagar o executável gerado:
+Remove the generated executable with:
 
 ```sh
 make clean
 ```
 
-## Executar
+## Run
 
-Sem argumentos, o programa executa um teste single-thread de 10 segundos:
+With no arguments, the program runs a 10-second single-threaded benchmark:
 
 ```sh
 ./cpu-z-bench-linux
 ```
 
-Exemplos com duração e modo explícitos:
+Examples with an explicit mode and duration:
 
 ```sh
-# Single-thread por 10 segundos
+# Single-threaded for 10 seconds
 ./cpu-z-bench-linux --mode single --duration-ms 10000
 
-# Multi-thread usando os CPUs permitidos para este processo
+# Multi-threaded using the CPUs allowed to this process
 ./cpu-z-bench-linux --mode multi --duration-ms 10000 --threads auto
 
-# Multi-thread usando 4 workers
+# Multi-threaded with 4 workers
 ./cpu-z-bench-linux --mode multi --duration-ms 10000 --threads 4
 
-# Executa multi-thread e depois single-thread, ambos por 5 segundos
+# Run multi-threaded, then single-threaded, for 5 seconds each
 ./cpu-z-bench-linux --mode both --duration-ms 5000 --threads 4
 ```
 
-Consulte a ajuda embutida com:
+Show the built-in help with:
 
 ```sh
 ./cpu-z-bench-linux --help
 ```
 
-## Interface interativa (TUI)
+## Interactive terminal UI
 
-Para escolher as opções e iniciar execuções por um menu no terminal:
+Choose settings and start runs from a terminal menu:
 
 ```sh
 ./cpu-z-bench-linux --tui
 ```
 
-No menu, `m` alterna entre os modos single, multi e both; `d` define a duração
-em milissegundos; `w` define o número de workers ou `auto`; `r` inicia a
-execução; `h` mostra os controles e `q` sai. Depois de cada execução, o menu
-volta a aparecer. A duração medida se aplica separadamente a cada modo
-selecionado; cada execução faz também 150 ms de aquecimento antes de iniciar o
-cronômetro.
+In the menu, `m` cycles through single, multi, and both modes; `d` sets the
+duration in milliseconds; `w` sets the worker count or `auto`; `r` starts a
+run; `h` shows the controls; and `q` exits. The menu returns after each run.
+The selected duration applies separately to each mode, and each run performs a
+150 ms warmup before the timer starts.
 
-Também é possível abrir o menu com opções iniciais, por exemplo:
+You can also provide initial settings when opening the menu:
 
 ```sh
 ./cpu-z-bench-linux --tui --mode both --duration-ms 3000 --threads auto
 ```
 
-A interface usa apenas entrada e saída padrão do terminal, sem dependências
-extras, e requer uma sessão interativa.
+The interface uses standard terminal input and output, requires no extra
+dependencies, and needs an interactive terminal session.
 
-## Opções
+## Options
 
-| Opção | Valores | Padrão | Descrição |
+| Option | Values | Default | Description |
 |---|---|---|---|
-| `--mode` | `single`, `multi` ou `both` | `single` | Escolhe o teste single-thread, multi-thread ou os dois. |
-| `--duration-ms` | De `1` a `86400000` | `10000` | Duração aproximada de cada execução, em milissegundos. |
-| `--threads` | `auto` ou de `1` a `1024` | `auto` | Número de workers no modo multi-thread. Ignorado no modo `single`. |
-| `--tui` | — | desativado | Abre o menu interativo do terminal. |
-| `--help`, `-h` | — | — | Mostra as opções disponíveis. |
+| `--mode` | `single`, `multi`, or `both` | `single` | Select single-threaded, multi-threaded, or both runs. |
+| `--duration-ms` | `1` to `86400000` | `10000` | Approximate measured duration of each run, in milliseconds. |
+| `--threads` | `auto` or `1` to `1024` | `auto` | Number of workers for multi-threaded runs. Ignored in `single` mode. |
+| `--tui` | — | disabled | Open the interactive terminal menu. |
+| `--help`, `-h` | — | — | Show the available options. |
 
-### Modos
+### Modes
 
-- `single`: processa os frames com uma thread. É o modo padrão e o mais útil
-  para observar o desempenho de um único núcleo lógico.
-- `multi`: divide as linhas da imagem entre os workers e mede o processamento
-  paralelo. Este modo não executa também o teste single-thread.
-- `both`: executa primeiro o teste multi-thread, espera 10 ms e executa o
-  single-thread. A duração informada se aplica separadamente a cada execução.
+- `single`: processes frames with one thread. This is the default and is most
+  useful for observing the performance of one logical CPU.
+- `multi`: splits image rows among the workers and measures parallel processing.
+  It does not also run the single-threaded test.
+- `both`: runs the multi-threaded test first, waits 10 ms, then runs the
+  single-threaded test. The selected duration applies to each run separately.
 
-No modo multi-thread, `--threads auto` usa o número de CPUs na máscara de
-afinidade do processo, quando o Linux fornece essa informação. Se a consulta de
-afinidade não estiver disponível, o programa usa a quantidade informada pela
-biblioteca padrão. O valor `auto` não detecta limites de quota de CPU que não
-estejam refletidos na afinidade.
+In multi-threaded mode, `--threads auto` uses the number of CPUs in the
+process's affinity mask when Linux provides it. If affinity cannot be queried,
+the program uses the count reported by the standard library. `auto` does not
+detect CPU quota limits that are not reflected in the affinity mask.
 
-## Entender o resultado
+## Understanding the output
 
-Cada execução apresenta o tempo decorrido, a quantidade de pixels completos
-processados, a taxa de pixels por segundo e uma pontuação na escala aproximada
-do CPU-Z 19.01:
+Each run reports elapsed time, the number of fully processed pixels, throughput
+in pixels per second, and a score on the approximate CPU-Z 19.01 scale:
 
 ```text
 Single-thread:
@@ -152,93 +148,87 @@ Single-thread:
   19.01-scale score (pixels/s / 10000): ...
 ```
 
-As métricas são calculadas assim:
+The metrics are calculated as follows:
 
 ```text
-pixels/s = pixels processados / tempo decorrido em segundos
-pontuação da escala = pixels/s / 10.000
+pixels/s = processed pixels / elapsed time in seconds
+scale score = pixels/s / 10,000
 ```
 
-A contagem considera cada posição da imagem uma vez. Ela não multiplica o total
-pelas quatro componentes RGBA, pelas camadas de ruído ou pelo número de
-operações internas.
+Each image position is counted once. The count is not multiplied by the four
+RGBA channels, the noise layers, or the number of internal operations.
 
-Os números variam conforme o processador, frequência, temperatura, carga do
-sistema, limites da máquina virtual ou do contêiner e duração selecionada. A
-pontuação com uma casa decimal pode arredondar pequenas diferenças; consulte
-também `pixels/s` ao comparar execuções.
+Results vary with the processor, clock speed, temperature, system load, virtual
+machine or container limits, and selected duration. The score is rounded to one
+decimal place, so check `pixels/s` when comparing small differences.
 
-O modelo vem do campo `model name` de `/proc/cpuinfo`. A frequência mostra o
-intervalo dos valores `cpu MHz` disponíveis nesse arquivo, lidos após cada
-execução; ela é uma amostra informativa e pode variar entre núcleos ou não estar
-disponível em máquinas virtuais.
+The CPU model comes from the `model name` field in `/proc/cpuinfo`. The reported
+clock is the range of available `cpu MHz` values from that file, read after each
+run. It is an informational sample, can vary between CPUs, and may be
+unavailable in virtual machines.
 
-## Como o teste funciona
+## How the benchmark works
 
-Antes de cada execução medida, o programa faz 150 ms de aquecimento com o mesmo
-modo e número de workers selecionados; esse trabalho não entra na contagem nem
-no tempo reportados. O aquecimento ajuda o processador a sair do estado idle,
-especialmente em testes curtos.
+Before each measured run, the program performs a 150 ms warmup using the same
+mode and worker count. Warmup work is excluded from the reported pixel count
+and elapsed time. This helps the processor move out of its idle state,
+especially during short runs.
 
-O programa cria uma tabela determinística com 4096 valores antes de iniciar a
-medição. Em seguida, processa imagens de 1024 × 1024 pixels. Para cada pixel,
-calcula duas composições de ruído 2D no estilo simplex: uma com 10 camadas e
-outra com 7. Os resultados são convertidos em quatro componentes de cor (RGBA)
-e gravados em um buffer.
+The program creates a deterministic table of 4096 values before measurement.
+It then processes 1024 × 1024 pixel images. For each pixel, it computes two
+simplex-style 2D noise compositions: one with 10 layers and one with 7. The
+results are converted into four color channels (RGBA) and written to a buffer.
 
-No modo single-thread, uma thread processa a imagem inteira. No modo
-multi-thread, os workers recebem faixas separadas de linhas e sincronizam entre
-frames. A preparação das threads e dos buffers ocorre antes do intervalo
-cronometrado.
+In single-threaded mode, one thread processes the entire image. In
+multi-threaded mode, workers receive separate row ranges and synchronize between
+frames. Thread and buffer setup happens before the timed interval.
 
-O programa interrompe o trabalho quando termina o tempo solicitado e contabiliza
-somente pixels de linhas que foram concluídas. Por isso, a duração real pode
-variar ligeiramente em torno do valor configurado: a verificação do tempo
-acontece durante o processamento das linhas.
+The program stops when the selected duration ends and counts only completed
+rows. The actual duration may therefore vary slightly around the selected
+value because the timer is checked while processing rows.
 
-## Limitações e comparação de resultados
+## Limitations and comparing results
 
-Esta versão foi reconstruída a partir de uma análise estática do caminho de
-teste do CPU-Z 19.01. A análise não recuperou todos os detalhes da tabela,
-hash, fórmulas das composições e conversão de cor; esses pontos foram
-aproximados. Além disso, esta implementação usa um kernel escalar e não contém
-os caminhos SIMD SSE, AVX2 ou AVX-512 do CPU-Z.
+This version was reconstructed from static analysis of the CPU-Z 19.01 test
+path. The analysis did not recover every detail of the table, hash, composition
+formulas, or color conversion, so these parts are approximations. This
+implementation also uses a scalar kernel and does not include CPU-Z's SSE,
+AVX2, or AVX-512 SIMD paths.
 
-Por essas diferenças, a etiqueta `19.01-scale score` indica somente a escala
-usada para converter o throughput. Ela não torna os resultados equivalentes à
-pontuação oficial. Uma pontuação como `163.8` significa que esta implementação
-mediu aproximadamente 1.638.000 pixels/s; não significa que um CPU-Z oficial
-tenha pontuado 163,8 no mesmo processador.
+For these reasons, `19.01-scale score` identifies only the scale used to
+convert throughput; it does not make the results equivalent to the official
+score. A score of `163.8`, for example, means this implementation measured
+about 1,638,000 pixels/s. It does not mean the official CPU-Z score on the same
+processor would be 163.8.
 
-Para comparar mudanças neste programa, use a mesma máquina, o mesmo modo, a
-mesma duração e a mesma quantidade de threads. Sempre que possível, execute
-mais de uma vez em condições semelhantes e compare `pixels/s`. Feche tarefas
-pesadas em segundo plano e registre se o teste foi executado em hardware físico,
-máquina virtual ou contêiner. Em ambientes virtualizados, os CPUs visíveis e as
-quotas impostas pelo host podem limitar o resultado.
+To compare changes to this program, use the same machine, mode, duration, and
+thread count. When possible, run it more than once under similar conditions
+and compare `pixels/s`. Close heavy background tasks, and record whether the
+benchmark ran on physical hardware, in a virtual machine, or in a container. In
+virtualized environments, visible CPUs and host-enforced quotas can limit the
+results.
 
-## Solução de problemas
+## Troubleshooting
 
-### `g++: command not found` ou `make: command not found`
+### `g++: command not found` or `make: command not found`
 
-Instale o compilador e as ferramentas de compilação da sua distribuição. Em
-Debian ou Ubuntu, use `sudo apt install build-essential`.
+Install the compiler and build tools for your distribution. On Debian or Ubuntu,
+run `sudo apt install build-essential`.
 
-### `Unknown option` ou mensagem de valor inválido
+### `Unknown option` or invalid value
 
-Use `--help` para consultar a sintaxe. `--duration-ms` aceita valores de 1 a
-86400000; `--threads` aceita `auto` ou valores de 1 a 1024.
+Use `--help` to check the syntax. `--duration-ms` accepts values from 1 to
+86400000; `--threads` accepts `auto` or values from 1 to 1024.
 
-### Resultado diferente entre execuções
+### Results differ between runs
 
-Variações podem ocorrer por mudanças de frequência e temperatura do processador,
-carga do sistema, afinidade, quota da máquina virtual ou contenção de recursos.
-Repita o teste sob condições semelhantes antes de interpretar diferenças
-pequenas.
+Differences can come from CPU frequency and temperature changes, system load,
+affinity, virtual machine quotas, or resource contention. Repeat the benchmark
+under similar conditions before interpreting small differences.
 
-## Estado do projeto
+## Project status
 
-Este é um benchmark experimental e independente para Linux. Não é uma
-implementação oficial nem é afiliado à CPUID, fabricante do CPU-Z. Este projeto
-está licenciado sob a GNU General Public License versão 2.0; consulte o arquivo
-[LICENSE](LICENSE).
+This is an experimental, independent Linux benchmark. It is not an official
+implementation and is not affiliated with CPUID, the maker of CPU-Z. This
+project is licensed under the GNU General Public License, version 2
+(GPL-2.0-only); see [LICENSE](LICENSE).
