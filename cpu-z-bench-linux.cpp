@@ -7,10 +7,12 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sched.h>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -23,6 +25,7 @@ constexpr int kHeight = 1024;
 constexpr int kTableSize = 4096;
 constexpr int kTableMask = kTableSize - 1;
 using Clock = std::chrono::steady_clock;
+constexpr auto kWarmupDuration = std::chrono::milliseconds(150);
 
 struct Options {
     std::uint64_t duration_ms = 10'000;
@@ -220,7 +223,7 @@ private:
     std::condition_variable condition_;
 };
 
-Result run_single(const NoiseTable& noise, std::chrono::milliseconds duration) {
+Result run_single_pass(const NoiseTable& noise, std::chrono::milliseconds duration) {
     std::vector<std::uint8_t> pixels(static_cast<std::size_t>(kWidth) * kHeight * 4);
     const auto start = Clock::now();
     const auto deadline = start + duration;
@@ -240,9 +243,14 @@ Result run_single(const NoiseTable& noise, std::chrono::milliseconds duration) {
     return {completed, std::chrono::duration<double>(end - start).count()};
 }
 
-Result run_multi(const NoiseTable& noise,
-                 unsigned thread_count,
-                 std::chrono::milliseconds duration) {
+Result run_single(const NoiseTable& noise, std::chrono::milliseconds duration) {
+    (void)run_single_pass(noise, kWarmupDuration);
+    return run_single_pass(noise, duration);
+}
+
+Result run_multi_pass(const NoiseTable& noise,
+                      unsigned thread_count,
+                      std::chrono::milliseconds duration) {
     struct Worker {
         int first_row = 0;
         int row_count = 0;
@@ -313,6 +321,13 @@ Result run_multi(const NoiseTable& noise,
         completed += worker.completed;
     }
     return {completed, std::chrono::duration<double>(end - start).count()};
+}
+
+Result run_multi(const NoiseTable& noise,
+                 unsigned thread_count,
+                 std::chrono::milliseconds duration) {
+    (void)run_multi_pass(noise, thread_count, kWarmupDuration);
+    return run_multi_pass(noise, thread_count, duration);
 }
 
 unsigned allowed_cpu_count() {
@@ -498,7 +513,9 @@ int run_tui(Options options, const NoiseTable& noise) {
         }
         if (command == "r" || command == "R" || command == "run") {
             const auto duration = std::chrono::milliseconds(options.duration_ms);
-            std::cout << "\nRunning " << options.mode << " benchmark; please wait.\n";
+            std::cout << "\nRunning " << options.mode << " benchmark; please wait.\n"
+                      << "Warmup: " << kWarmupDuration.count()
+                      << " ms per selected mode, excluded from measurement.\n";
             if (options.mode != "single") {
                 const Result multi = run_multi(noise, options.threads, duration);
                 print_result("Multi-thread", multi);
@@ -517,12 +534,66 @@ int run_tui(Options options, const NoiseTable& noise) {
     }
 }
 
+std::string trim(const std::string& value) {
+    const std::size_t first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return {};
+    }
+    const std::size_t last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
+}
+
+struct CpuInfo {
+    std::string model;
+    std::vector<double> reported_clock_mhz;
+};
+
+CpuInfo read_cpu_info() {
+    CpuInfo info;
+    std::ifstream cpuinfo("/proc/cpuinfo");
+    std::string line;
+    while (std::getline(cpuinfo, line)) {
+        const std::size_t separator = line.find(':');
+        if (separator == std::string::npos) {
+            continue;
+        }
+
+        const std::string key = trim(line.substr(0, separator));
+        const std::string value = trim(line.substr(separator + 1));
+        if (key == "model name" && info.model.empty()) {
+            info.model = value;
+        } else if (key == "cpu MHz") {
+            std::istringstream parser(value);
+            double clock_mhz = 0.0;
+            if (parser >> clock_mhz && std::isfinite(clock_mhz) && clock_mhz > 0.0) {
+                info.reported_clock_mhz.push_back(clock_mhz);
+            }
+        }
+    }
+    return info;
+}
+
 void print_result(const char* label, const Result& result) {
     const double pixels_per_second = result.elapsed_seconds > 0.0
         ? static_cast<double>(result.pixels) / result.elapsed_seconds
         : 0.0;
     const double score = pixels_per_second / 10'000.0;
+    const CpuInfo cpu = read_cpu_info();
     std::cout << label << ":\n"
+              << "  CPU: " << (cpu.model.empty() ? "unavailable" : cpu.model) << "\n";
+    if (cpu.reported_clock_mhz.empty()) {
+        std::cout << "  reported clock (/proc/cpuinfo): unavailable\n";
+    } else {
+        const auto [minimum, maximum] = std::minmax_element(
+            cpu.reported_clock_mhz.begin(), cpu.reported_clock_mhz.end());
+        std::cout << "  reported clock (/proc/cpuinfo): " << std::fixed
+                  << std::setprecision(1) << *minimum;
+        if (*minimum != *maximum) {
+            std::cout << "-" << *maximum;
+        }
+        std::cout << " MHz\n" << std::defaultfloat;
+    }
+    std::cout
               << "  elapsed: " << result.elapsed_seconds << " s\n"
               << "  pixels: " << result.pixels << "\n"
               << "  pixels/s: " << pixels_per_second << "\n"
@@ -548,7 +619,8 @@ int main(int argc, char** argv) {
               << "  mode: " << options.mode << "\n"
               << "  workload: 1024x1024 RGBA pixels; 10+7 layered 2D simplex-style noise\n"
               << "  score scale: 19.01-style pixels/s / 10000, 64-bit pixel counter\n"
-              << "  duration per run: " << options.duration_ms << " ms\n";
+              << "  measured duration per run: " << options.duration_ms << " ms\n"
+              << "  warmup per run: " << kWarmupDuration.count() << " ms (excluded)\n";
     if (options.mode != "single") {
         std::cout << "  multi-thread workers: " << options.threads << "\n";
     }

@@ -38,7 +38,7 @@ sudo apt install build-essential
 
 ## Compilar
 
-Na pasta do projeto:
+Na raiz do repositório:
 
 ```sh
 make
@@ -98,7 +98,9 @@ Para escolher as opções e iniciar execuções por um menu no terminal:
 No menu, `m` alterna entre os modos single, multi e both; `d` define a duração
 em milissegundos; `w` define o número de workers ou `auto`; `r` inicia a
 execução; `h` mostra os controles e `q` sai. Depois de cada execução, o menu
-volta a aparecer. A duração se aplica separadamente a cada modo selecionado.
+volta a aparecer. A duração medida se aplica separadamente a cada modo
+selecionado; cada execução faz também 150 ms de aquecimento antes de iniciar o
+cronômetro.
 
 Também é possível abrir o menu com opções iniciais, por exemplo:
 
@@ -142,6 +144,8 @@ do CPU-Z 19.01:
 
 ```text
 Single-thread:
+  CPU: Intel(R) ...
+  reported clock (/proc/cpuinfo): 3400.0-4100.0 MHz
   elapsed: ... s
   pixels: ...
   pixels/s: ...
@@ -164,7 +168,17 @@ sistema, limites da máquina virtual ou do contêiner e duração selecionada. A
 pontuação com uma casa decimal pode arredondar pequenas diferenças; consulte
 também `pixels/s` ao comparar execuções.
 
+O modelo vem do campo `model name` de `/proc/cpuinfo`. A frequência mostra o
+intervalo dos valores `cpu MHz` disponíveis nesse arquivo, lidos após cada
+execução; ela é uma amostra informativa e pode variar entre núcleos ou não estar
+disponível em máquinas virtuais.
+
 ## Como o teste funciona
+
+Antes de cada execução medida, o programa faz 150 ms de aquecimento com o mesmo
+modo e número de workers selecionados; esse trabalho não entra na contagem nem
+no tempo reportados. O aquecimento ajuda o processador a sair do estado idle,
+especialmente em testes curtos.
 
 O programa cria uma tabela determinística com 4096 valores antes de iniciar a
 medição. Em seguida, processa imagens de 1024 × 1024 pixels. Para cada pixel,
@@ -225,5 +239,6 @@ pequenas.
 ## Estado do projeto
 
 Este é um benchmark experimental e independente para Linux. Não é uma
-implementação oficial nem é afiliado à CPUID, fabricante do CPU-Z. Ainda não há
-um arquivo de licença neste repositório.
+implementação oficial nem é afiliado à CPUID, fabricante do CPU-Z. Este projeto
+está licenciado sob a GNU General Public License versão 2.0; consulte o arquivo
+[LICENSE](LICENSE).
