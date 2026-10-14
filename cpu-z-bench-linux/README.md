@@ -15,6 +15,7 @@ pontuação exibida pelo CPU-Z.
 - [Requisitos](#requisitos)
 - [Compilar](#compilar)
 - [Executar](#executar)
+- [Interface interativa (TUI)](#interface-interativa-tui)
 - [Opções](#opções)
 - [Entender o resultado](#entender-o-resultado)
 - [Como o teste funciona](#como-o-teste-funciona)
@@ -86,6 +87,28 @@ Consulte a ajuda embutida com:
 ./cpu-z-bench-linux --help
 ```
 
+## Interface interativa (TUI)
+
+Para escolher as opções e iniciar execuções por um menu no terminal:
+
+```sh
+./cpu-z-bench-linux --tui
+```
+
+No menu, `m` alterna entre os modos single, multi e both; `d` define a duração
+em milissegundos; `w` define o número de workers ou `auto`; `r` inicia a
+execução; `h` mostra os controles e `q` sai. Depois de cada execução, o menu
+volta a aparecer. A duração se aplica separadamente a cada modo selecionado.
+
+Também é possível abrir o menu com opções iniciais, por exemplo:
+
+```sh
+./cpu-z-bench-linux --tui --mode both --duration-ms 3000 --threads auto
+```
+
+A interface usa apenas entrada e saída padrão do terminal, sem dependências
+extras, e requer uma sessão interativa.
+
 ## Opções
 
 | Opção | Valores | Padrão | Descrição |
@@ -93,6 +116,7 @@ Consulte a ajuda embutida com:
 | `--mode` | `single`, `multi` ou `both` | `single` | Escolhe o teste single-thread, multi-thread ou os dois. |
 | `--duration-ms` | De `1` a `86400000` | `10000` | Duração aproximada de cada execução, em milissegundos. |
 | `--threads` | `auto` ou de `1` a `1024` | `auto` | Número de workers no modo multi-thread. Ignorado no modo `single`. |
+| `--tui` | — | desativado | Abre o menu interativo do terminal. |
 | `--help`, `-h` | — | — | Mostra as opções disponíveis. |
 
 ### Modos

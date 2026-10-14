@@ -13,6 +13,7 @@
 #include <sched.h>
 #include <string>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -27,6 +28,7 @@ struct Options {
     std::uint64_t duration_ms = 10'000;
     unsigned threads = 0;  // 0 means all CPUs allowed to this process.
     std::string mode = "single";
+    bool tui = false;
 };
 
 struct Result {
@@ -343,6 +345,7 @@ void print_usage(const char* program) {
         << "  --mode single|multi|both  Run mode (default: single)\n"
         << "  --duration-ms N  Duration of each run (default: 10000)\n"
         << "  --threads N|auto Workers in the multi-thread run (default: auto)\n"
+        << "  --tui            Open the interactive terminal menu\n"
         << "  --help           Show this help\n";
 }
 
@@ -353,6 +356,10 @@ bool parse_options(int argc, char** argv, Options& options) {
         if (arg == "--help" || arg == "-h") {
             print_usage(argv[0]);
             std::exit(0);
+        }
+        if (arg == "--tui") {
+            options.tui = true;
+            continue;
         }
         if (arg == "--mode") {
             if (i + 1 >= argc) {
@@ -404,6 +411,112 @@ bool parse_options(int argc, char** argv, Options& options) {
     return true;
 }
 
+void print_result(const char* label, const Result& result);
+
+void print_tui_menu(const Options& options) {
+    std::cout << "\n==============================================\n"
+              << " CPU-Z Linux benchmark - interactive tester\n"
+              << "==============================================\n"
+              << "Mode: " << options.mode << "\n"
+              << "Duration: " << options.duration_ms << " ms\n"
+              << "Workers: " << options.threads << " (multi/both)\n\n"
+              << "  m  Change mode (single / multi / both)\n"
+              << "  d  Change duration in milliseconds\n"
+              << "  w  Change worker count (or use auto)\n"
+              << "  r  Run with these settings\n"
+              << "  h  Show controls\n"
+              << "  q  Quit\n"
+              << "> " << std::flush;
+}
+
+int run_tui(Options options, const NoiseTable& noise) {
+    if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
+        std::cerr << "--tui requires an interactive terminal\n";
+        return 2;
+    }
+
+    std::string command;
+    while (true) {
+        print_tui_menu(options);
+        if (!std::getline(std::cin, command)) {
+            std::cout << "\n";
+            return 0;
+        }
+
+        if (command == "q" || command == "Q" || command == "quit") {
+            return 0;
+        }
+        if (command == "h" || command == "H" || command == "help") {
+            std::cout << "Enter m, d, w, or r at the prompt.\n"
+                      << "Duration is per run; 'both' runs multi, waits 10 ms, then single.\n"
+                      << "A duration of 1000 ms is useful for quick comparisons.\n";
+            continue;
+        }
+        if (command == "m" || command == "M") {
+            if (options.mode == "single") {
+                options.mode = "multi";
+            } else if (options.mode == "multi") {
+                options.mode = "both";
+            } else {
+                options.mode = "single";
+            }
+            continue;
+        }
+        if (command == "d" || command == "D") {
+            std::cout << "Duration in milliseconds (1-86400000): " << std::flush;
+            std::string value;
+            if (!std::getline(std::cin, value)) {
+                std::cout << "\n";
+                return 0;
+            }
+            std::uint64_t parsed = 0;
+            if (!parse_unsigned(value, parsed) || parsed == 0 || parsed > 86'400'000) {
+                std::cout << "Invalid duration; settings unchanged.\n";
+            } else {
+                options.duration_ms = parsed;
+            }
+            continue;
+        }
+        if (command == "w" || command == "W") {
+            std::cout << "Workers (1-1024 or auto): " << std::flush;
+            std::string value;
+            if (!std::getline(std::cin, value)) {
+                std::cout << "\n";
+                return 0;
+            }
+            if (value == "auto") {
+                options.threads = allowed_cpu_count();
+            } else {
+                std::uint64_t parsed = 0;
+                if (!parse_unsigned(value, parsed) || parsed == 0 || parsed > kHeight) {
+                    std::cout << "Invalid worker count; settings unchanged.\n";
+                } else {
+                    options.threads = static_cast<unsigned>(parsed);
+                }
+            }
+            continue;
+        }
+        if (command == "r" || command == "R" || command == "run") {
+            const auto duration = std::chrono::milliseconds(options.duration_ms);
+            std::cout << "\nRunning " << options.mode << " benchmark; please wait.\n";
+            if (options.mode != "single") {
+                const Result multi = run_multi(noise, options.threads, duration);
+                print_result("Multi-thread", multi);
+            }
+            if (options.mode == "both") {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            if (options.mode != "multi") {
+                const Result single = run_single(noise, duration);
+                print_result("Single-thread", single);
+            }
+            continue;
+        }
+
+        std::cout << "Unknown command. Enter h for controls.\n";
+    }
+}
+
 void print_result(const char* label, const Result& result) {
     const double pixels_per_second = result.elapsed_seconds > 0.0
         ? static_cast<double>(result.pixels) / result.elapsed_seconds
@@ -424,6 +537,11 @@ int main(int argc, char** argv) {
     if (!parse_options(argc, argv, options)) {
         print_usage(argv[0]);
         return 2;
+    }
+
+    if (options.tui) {
+        const NoiseTable noise;
+        return run_tui(options, noise);
     }
 
     std::cout << "CPU-Z-like Linux benchmark (independent scalar implementation)\n"
