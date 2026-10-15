@@ -78,16 +78,16 @@ def screen_text():
 try:
     read_for(0.3)
     assert process.poll() is None, "TUI failed during startup"
-    assert b"PROCESSADOR" in transcript, "CPU panel missing"
+    assert b"PROCESSOR" in transcript, "CPU panel missing"
     os.write(master, b"b")
     read_for(1.3)
-    assert "concluída" in screen_text(), "Both phases did not finish"
+    assert "Measurement complete" in screen_text(), "Both phases did not finish"
     resize(30, 10)
     # Crossterm's resize event is normally SIGWINCH-driven.
     import signal
     process.send_signal(signal.SIGWINCH)
     read_for(0.3)
-    assert "Amplie" in screen_text(), "Small terminal state missing"
+    assert "Resize" in screen_text(), "Small terminal state missing"
     resize(100, 28)
     process.send_signal(signal.SIGWINCH)
     read_for(0.3)
@@ -96,7 +96,7 @@ try:
     read_for(0.3)
     os.write(master, b"c")
     read_for(0.7)
-    assert "Cancelado" in screen_text(), "Cancellation did not finish"
+    assert "Cancelled" in screen_text(), "Cancellation did not finish"
     os.write(master, b"q")
     process.wait(timeout=5)
     read_for(0.1)

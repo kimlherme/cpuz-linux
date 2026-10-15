@@ -49,7 +49,7 @@ fn cpu_parser_handles_missing_and_duplicate_records() {
     assert_eq!(cpu.logical_total, 2);
     assert_eq!(cpu.logical_available, 1);
     assert_eq!(cpu.physical_cores, Some(1));
-    assert_eq!(cpu::parse_cpuinfo("", 1).model, "CPU desconhecida");
+    assert_eq!(cpu::parse_cpuinfo("", 1).model, "Unknown CPU");
 }
 
 #[test]

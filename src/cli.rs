@@ -42,47 +42,68 @@ pub fn parse(args: &[String], tty: bool) -> Result<Options, String> {
                     Some("single") => Mode::Single,
                     Some("multi") => Mode::Multi,
                     Some("both") => Mode::Both,
-                    _ => return Err("--mode precisa ser single, multi ou both".into()),
+                    _ => return Err("--mode must be single, multi or both".into()),
                 }
             }
             "--seconds" => {
                 options.seconds = args
                     .next()
-                    .ok_or("falta valor para --seconds")?
+                    .ok_or("missing value for --seconds")?
                     .parse()
-                    .map_err(|_| "duração inválida")?
+                    .map_err(|_| "invalid duration")?
             }
             "--threads" => {
-                let value = args.next().ok_or("falta valor para --threads")?;
+                let value = args.next().ok_or("missing value for --threads")?;
                 if value == "auto" {
                     options.threads = std::thread::available_parallelism()
                         .map(usize::from)
                         .unwrap_or(1)
                         .min(MAX_THREADS);
                 } else {
-                    options.threads = value.parse().map_err(|_| "número de threads inválido")?;
+                    options.threads = value.parse().map_err(|_| "invalid thread count")?;
                 }
             }
-            _ => return Err(format!("opção desconhecida: {arg}")),
+            _ => return Err(format!("unknown option: {arg}")),
         }
     }
     if options.help {
         return Ok(options);
     }
     if !options.seconds.is_finite() || !(0.05..=3600.0).contains(&options.seconds) {
-        return Err("--seconds precisa estar entre 0.05 e 3600".into());
+        return Err("--seconds must be between 0.05 and 3600".into());
     }
     if !(1..=MAX_THREADS).contains(&options.threads) {
-        return Err("--threads precisa estar entre 1 e 256".into());
+        return Err("--threads must be between 1 and 256".into());
     }
     if force_tui && force_headless {
-        return Err("--tui não pode ser combinado com --json ou --no-tui".into());
+        return Err("--tui cannot be combined with --json or --no-tui".into());
     }
     if force_tui && !tty {
-        return Err("--tui precisa de stdin e stdout ligados a um terminal".into());
+        return Err("--tui requires stdin and stdout connected to a terminal".into());
     }
     options.tui = force_tui || (options.tui && !force_headless);
     Ok(options)
 }
 
-pub const HELP: &str = "CPUZ Linux 0.2.0 — benchmark experimental de CPU\n\nUso: cpuz-linux [opções]\n\nSem argumentos em um terminal: abre a TUI.\nSem terminal: executa single por 10 segundos.\n\n  --tui                 Abre a interface interativa\n  --no-tui              Usa saída de texto\n  --mode single|multi|both\n  --seconds N           Duração por fase (0.05..3600; padrão 10)\n  --threads auto|N      Workers no multi (1..256; padrão CPUs disponíveis)\n  --json                Saída JSON; implica execução sem TUI\n  -h, --help            Mostra esta ajuda\n\nTUI: S single · M multi · B ambos · +/- threads · [/] duração\n     C cancela · Q/Esc sai · Ctrl+C cancela e sai\n\nScore = pixels contabilizados / milissegundos inteiros.\nCarga baseada no 17.01.SSE x64; equivalência com CPU-Z não validada.\nUse compilação release. Não é afiliado à CPUID.\n";
+pub const HELP: &str = r#"CPUZ Linux 0.2.0 — experimental CPU benchmark
+
+Usage: cpuz-linux [options]
+
+No arguments in a terminal: open the TUI.
+Without a terminal: run single for 10 seconds.
+
+  --tui                 Open the interactive interface
+  --no-tui              Use plain text output
+  --mode single|multi|both
+  --seconds N           Duration per phase (0.05..3600; default 10)
+  --threads auto|N      Multi workers (1..256; default available CPUs)
+  --json                JSON output; disables the TUI
+  -h, --help            Show this help
+
+TUI: S single · M multi · B both · +/- workers · [/] duration
+     C cancel · Q/Esc quit · Ctrl+C cancel and quit
+
+Score = counted pixels / elapsed integer milliseconds.
+Based on the 17.01.SSE x64 workload; CPU-Z equivalence is not validated.
+Use a release build. Not affiliated with CPUID.
+"#;

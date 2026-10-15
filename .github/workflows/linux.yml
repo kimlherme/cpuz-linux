@@ -8,6 +8,8 @@ permissions:
 jobs:
   distributions:
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.0'
     strategy:
       fail-fast: false
       matrix:
@@ -23,7 +25,7 @@ jobs:
             setup: dnf install -y gcc make curl git ca-certificates python3 rpm-build
           - name: opensuse
             image: opensuse/tumbleweed:latest
-            setup: zypper --non-interactive install gcc make curl git ca-certificates python3 rpm-build tar gzip
+            setup: zypper --non-interactive install bash gcc make curl git ca-certificates python3 rpm-build tar gzip
     container: ${{ matrix.image }}
     name: ${{ matrix.name }}
     steps:

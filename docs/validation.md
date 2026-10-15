@@ -4,6 +4,11 @@ Sessão de 15 de outubro de 2026. A validação comprova funcionamento desta
 implementação; não comprova equivalência de pixels, instruções ou score com
 o executável Windows do CPU-Z.
 
+Atualização de idioma: README, TUI, ajuda e mensagens da CLI foram traduzidos
+para inglês a pedido do usuário. Os 9 testes, Clippy e o teste de TUI em
+pseudo-terminal passaram novamente no host após a tradução. A documentação
+técnica detalhada permanece em português.
+
 ## Host Linux x86_64
 
 Compilador: `rustc 1.99.0 (b940084d7 2026-09-28)`.
@@ -81,6 +86,11 @@ distribuições.
 O workflow GitHub Actions reproduz testes similares. A validação local em
 containers não implica que uma execução remota de Actions já tenha terminado;
 consulte o status do workflow para o commit publicado.
+
+A primeira execução remota revelou que o override `stable` do projeto
+selecionava uma toolchain sem rustfmt, apesar da instalação de componentes
+em 1.99.0. A CI passou a selecionar 1.99.0 explicitamente via
+`RUSTUP_TOOLCHAIN`; Bash também foi incluído nos pré-requisitos do openSUSE.
 
 ## Limites
 

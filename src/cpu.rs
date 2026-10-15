@@ -47,7 +47,7 @@ pub fn parse_cpuinfo(text: &str, available: usize) -> CpuInfo {
         }
     }
     CpuInfo {
-        model: model.unwrap_or_else(|| "CPU desconhecida".into()),
+        model: model.unwrap_or_else(|| "Unknown CPU".into()),
         architecture: std::env::consts::ARCH.into(),
         logical_total: logical.max(available),
         logical_available: available.max(1),

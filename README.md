@@ -1,14 +1,14 @@
 # CPUZ Linux
 
-Benchmark de CPU em Rust para Linux, com interface no terminal, testes single e multi e identificação do processador em uso.
+A CPU benchmark written in Rust for Linux, with a terminal interface, single and multi thread tests, and information about the processor being tested.
 
-**Experimental:** a carga foi reconstruída a partir da investigação do 17.01.SSE x64; equivalência numérica e de pontuação com o CPU-Z ainda não foi demonstrada. Este projeto não é afiliado à CPUID.
+**Experimental:** the workload was reconstructed from an investigation of 17.01.SSE x64; numerical and score equivalence with CPU-Z has not been demonstrated. This project is not affiliated with CPUID.
 
-![Prévia ilustrativa da interface no terminal](docs/tui-preview.svg)
+![Illustrative preview of the terminal interface](docs/tui-preview.svg)
 
-## Começar
+## Getting started
 
-Com Rust estável recente, Git e compilador/linker instalados:
+With a recent stable Rust toolchain, Git, and a compiler/linker installed:
 
 ```bash
 git clone https://github.com/kimlherme/cpuz-linux.git
@@ -17,74 +17,74 @@ cargo build --release --locked
 ./target/release/cpuz-linux
 ```
 
-Sem argumentos, em um terminal interativo, o programa abre a TUI. Pressione **S** para single, **M** para multi ou **B** para executar ambos. O nome da CPU, arquitetura, CPUs disponíveis e núcleos físicos detectados aparecem no painel superior.
+Running the program without arguments in an interactive terminal opens the TUI. Press **S** for single, **M** for multi, or **B** to run both. The top panel shows the CPU model, architecture, available logical CPUs, and detected physical cores. The terminal interface uses English.
 
-Use release para medir desempenho. O build debug tem características de otimização diferentes e não serve como comparação de score com release.
+Use a release build to measure performance. Debug builds use different optimization settings, so their scores should not be compared with release scores.
 
-## Interface
+## Terminal interface
 
-A TUI mostra cartões de single e multi, tempo decorrido, quantidade de trabalho, número de workers e razão multi/single. As configurações podem ser ajustadas enquanto não houver medição ativa.
+The TUI displays single and multi result cards, elapsed time, completed work, worker count, and the multi/single ratio. You can adjust settings while no measurement is running.
 
-| Tecla | Ação |
+| Key | Action |
 | --- | --- |
-| `S` | Executar single com uma thread |
-| `M` | Executar multi com o número de workers selecionado |
-| `B` | Executar multi e depois single |
-| `+` / `-` | Aumentar / reduzir workers do multi |
-| `[` / `]` | Reduzir / aumentar duração por fase |
-| `C` | Cancelar a medição atual; resultado fica identificado como parcial |
-| `Q` / `Esc` | Sair |
-| `Ctrl+C` | Cancelar e sair |
+| `S` | Run single with one thread |
+| `M` | Run multi with the selected worker count |
+| `B` | Run multi, then single |
+| `+` / `-` | Increase / decrease the multi worker count |
+| `[` / `]` | Decrease / increase the duration of each phase |
+| `C` | Cancel the current measurement; its result is marked as partial |
+| `Q` / `Esc` | Quit |
+| `Ctrl+C` | Cancel and quit |
 
-O terminal deve ter pelo menos 64 colunas e 22 linhas para mostrar o painel completo. Em tamanhos menores, a aplicação pede para ampliar a janela. As threads em andamento são finalizadas antes da restauração do terminal; cancelamento pode esperar o término da unidade atual.
+The terminal must be at least 64 columns by 22 rows to display the full dashboard. In a smaller terminal, the application asks you to enlarge the window. Running threads finish before the terminal is restored; cancellation may wait for the current work unit to complete.
 
-A imagem acima é uma prévia ilustrativa do layout. Ela não representa uma medição de uma CPU de referência.
+The image above illustrates the layout. It does not show a measurement from a reference CPU.
 
-## Usar sem interface
+## Running without the TUI
 
 ```bash
-# Single: uma thread, dez segundos
+# Single: one thread, ten seconds
 cpuz-linux --mode single --seconds 10 --no-tui
 
-# Multi: CPUs disponíveis ao processo
+# Multi: CPUs available to the process
 cpuz-linux --mode multi --threads auto --seconds 10
 
-# Multi com oito workers, depois single com uma thread
+# Multi with eight workers, then single with one thread
 cpuz-linux --mode both --threads 8 --seconds 10
 
-# JSON para guardar e analisar resultados
+# Save results as JSON for analysis
 cpuz-linux --mode both --threads auto --seconds 10 --json > resultado.json
 
-# Abrir TUI com configurações iniciais
+# Open the TUI with initial settings
 cpuz-linux --tui --threads 4 --seconds 15
 
-# Ajuda
+# Help
 cpuz-linux --help
 ```
 
-Quando `cpuz-linux` ainda não estiver no PATH, use `./target/release/cpuz-linux` nos exemplos.
+If `cpuz-linux` is not on your PATH yet, use `./target/release/cpuz-linux` in these examples.
 
-### Opções
+### Options
 
-| Opção | Valores | Padrão |
+| Option | Values | Default |
 | --- | --- | --- |
 | `--mode` | `single`, `multi`, `both` | `single` |
-| `--seconds` | Número entre `0.05` e `3600` | `10` por fase |
-| `--threads` | `auto` ou inteiro entre `1` e `256` | CPUs disponíveis ao processo, limitado a 256 |
-| `--tui` | Abre interface interativa | Ativada sem argumentos quando stdin/stdout são terminais |
-| `--no-tui` | Saída de texto | Ativada fora da abertura automática da TUI |
-| `--json` | Objeto JSON, sem TUI | Desativado |
-| `-h`, `--help` | Mostra ajuda | — |
+| `--seconds` | A number from `0.05` to `3600` | `10` per phase |
+| `--threads` | `auto` or an integer from `1` to `256` | CPUs available to the process, capped at 256 |
+| `--tui` | Open the interactive interface | Enabled without arguments when stdin and stdout are terminals |
+| `--no-tui` | Text output | Used when the TUI is not selected |
+| `--json` | JSON object, without the TUI | Disabled |
+| `-h`, `--help` | Show help | — |
 
-`--threads` configura o multi; single sempre usa um worker. `both` executa duas fases: multi e depois single. Com `--seconds 10`, são aproximadamente vinte segundos de medição, além da preparação e finalização.
+`--threads` configures multi; single always uses one worker. `both` runs two phases: multi followed by single. With `--seconds 10`, this means roughly twenty seconds of measurement, plus setup and cleanup.
 
-Sem argumentos e sem terminal, o programa executa single por dez segundos. `--tui` precisa de stdin e stdout ligados a um terminal e não pode ser combinado com `--json` ou `--no-tui`. Valores inválidos produzem mensagem de erro e código de saída 2.
+Without arguments and without a terminal, the program runs single for ten seconds. `--tui` requires stdin and stdout to be connected to a terminal and cannot be combined with `--json` or `--no-tui`. Invalid values produce an error message and exit code 2.
 
-A TUI aguarda uma tecla de execução. `--mode` não dispara automaticamente um teste ao abrir a interface; as teclas S/M/B escolhem o que executar.
+The TUI waits for a start key. `--mode` does not automatically start a test when the interface opens; S/M/B select the test to run.
 
-## Instalação nas distribuições
+## Installing on Linux distributions
 
-O projeto usa Rust edition 2024 e exige Rust 1.88 ou posterior. As dependências da aplicação são Rust; a compilação requer também ferramentas nativas para linkar o binário. Os caminhos abaixo atendem Arch Linux, Ubuntu, Fedora e openSUSE. Consulte [distribuições](docs/distributions.md) para empacotamento e detalhes.
+The project uses Rust edition 2024 and requires Rust 1.88 or later. Its application dependencies are Rust crates; building also requires native tools to link the executable. The instructions below cover Arch Linux, Ubuntu, Fedora, and openSUSE. See [distribution support](docs/distributions.md) for packaging instructions and details.
 
 ### Arch Linux
 
@@ -100,7 +100,7 @@ sudo apt update
 sudo apt install build-essential git curl ca-certificates
 ```
 
-Instale um Rust estável recente pelo procedimento universal abaixo se a versão disponível no sistema for anterior à 1.88. A versão de Rust dos repositórios depende da versão do Ubuntu.
+If the Rust version available on your system is older than 1.88, install a recent stable toolchain using the universal procedure below. The Rust version in Ubuntu's repositories depends on the Ubuntu release.
 
 ### Fedora
 
@@ -108,7 +108,7 @@ Instale um Rust estável recente pelo procedimento universal abaixo se a versão
 sudo dnf install gcc git curl
 ```
 
-Use um toolchain Rust recente do sistema ou o procedimento universal abaixo.
+Use a recent system Rust toolchain or the universal procedure below.
 
 ### openSUSE
 
@@ -116,11 +116,11 @@ Use um toolchain Rust recente do sistema ou o procedimento universal abaixo.
 sudo zypper install gcc git curl
 ```
 
-Use um toolchain Rust recente do sistema ou o procedimento universal abaixo. A disponibilidade e versão de pacotes Rust variam entre Leap e Tumbleweed.
+Use a recent system Rust toolchain or the universal procedure below. Rust package availability and versions differ between Leap and Tumbleweed.
 
-### Rust estável com rustup
+### Stable Rust with rustup
 
-O instalador oficial está em [rustup.rs](https://rustup.rs/). Para baixar o script, examiná-lo e então executá-lo:
+The official installer is available at [rustup.rs](https://rustup.rs/). Download the script, inspect it, then run it:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/cpuz-rustup-init.sh
@@ -130,70 +130,72 @@ sh /tmp/cpuz-rustup-init.sh --profile minimal --default-toolchain stable
 rustc --version
 ```
 
-Se já usa rustup, atualize seu toolchain estável com `rustup update stable`. O arquivo `rust-toolchain.toml` seleciona o canal utilizado pelo projeto.
+If you already use rustup, update your stable toolchain with `rustup update stable`. The project's `rust-toolchain.toml` selects the toolchain channel.
 
-### Instalar no usuário
+### Install for the current user
 
-Depois de clonar o repositório e entrar na pasta:
+After cloning the repository and entering its directory:
 
 ```bash
 ./scripts/install.sh --prefix "$HOME/.local"
 ```
 
-O instalador compila com `--release --locked` e instala o executável, documentação e manual no prefixo selecionado. Garanta que `$HOME/.local/bin` esteja no PATH; depois execute `cpuz-linux`.
+The installer builds with `--release --locked` and installs the executable, documentation, and manual page under the selected prefix. Make sure `$HOME/.local/bin` is on your PATH, then run `cpuz-linux`.
 
-Para remover os arquivos instalados nesse prefixo:
+To remove the files installed under that prefix:
 
 ```bash
 ./scripts/install.sh --prefix "$HOME/.local" --uninstall
 ```
 
-Os scripts e receitas de pacote estão no repositório. Ter um caminho de instalação documentado não significa que cada versão de cada distribuição tenha sido executada manualmente; consulte os resultados concretos de CI e o estado de validação.
+Installation scripts and package recipes are included in the repository. Documented installation instructions do not mean that every release of every distribution has been tested manually; check the actual CI results and validation record.
 
-## O que o score mede
+## What the score measures
 
-A unidade recuperada para o single 17.01 x64 é **pixels contabilizados por milissegundo**. Cada pixel envolve 34 avaliações de ruído 2D, além da composição de cores.
+The unit recovered for the original 17.01 x64 single test is **counted pixels per millisecond**. Each pixel requires 34 evaluations of 2D noise, plus color composition.
 
 ```text
-score = float32(pixels contabilizados) / float32(tempo medido em ms inteiros)
+score = float32(counted pixels) / float32(measured time in whole milliseconds)
 ```
 
-500 pontos correspondem aproximadamente a 500 mil pixels por segundo dessa carga. O cálculo é na CPU; os pontos não são frames da GPU nem GHz. No caminho absoluto da interface original inspecionado, a pontuação é mostrada com uma casa decimal, sem fator de calibração por uma CPU-base.
+A score of 500 corresponds to roughly 500,000 pixels per second for this workload. The calculation runs on the CPU; these points are neither GPU frames nor GHz. In the original application's absolute score display path that was inspected, the score is shown to one decimal place, without a reference CPU calibration factor.
 
-O multi executa a carga de verdade em várias threads e soma seu trabalho aceito. A razão multi/single é o score multi dividido pelo single. Ela depende também de turbo, temperatura, SMT e limites de energia.
+Multi executes the workload across multiple threads and sums the work accepted by the measurement policy. The multi/single ratio is the multi score divided by the single score. Turbo behavior, temperature, SMT, and power limits also affect that ratio.
 
-Cada worker utiliza um buffer privado de 4 MiB, além das demais estruturas. Muitos workers aumentam consumo de memória e competição por recursos; 256 workers representam aproximadamente 1 GiB apenas em buffers. O limite aceito pela interface não é uma recomendação de desempenho.
+Each worker uses a private 4 MiB buffer in addition to other data structures. A large worker count increases memory use and competition for resources; 256 workers require about 1 GiB for buffers alone. The maximum accepted by the interface is not a recommended setting for performance.
 
-## JSON e automação
+## JSON and automation
 
-`--json` escreve um objeto com `schema_version: 1`. Os campos principais são:
+`--json` writes an object with `schema_version: 1`. Its main fields are:
 
-| Campo | Conteúdo |
+| Field | Contents |
 | --- | --- |
-| `algorithm` | Identificador da carga implementada |
-| `experimental` | Estado experimental |
-| `cpu` | Modelo, arquitetura e contagem de CPUs |
-| `configuration` | Configuração interpretada da execução |
-| `results` | Uma entrada por fase executada |
-| `multi_single_ratio` | Razão quando há single e multi válidos; `null` caso contrário |
+| `algorithm` | Identifier of the implemented workload |
+| `experimental` | Experimental status |
+| `cpu` | CPU model, architecture, and CPU counts |
+| `configuration` | Parsed execution settings |
+| `results` | One entry per executed phase |
+| `multi_single_ratio` | Ratio when valid single and multi results are available; otherwise `null` |
 
-Cada resultado contém `mode`, `threads`, `pixels`, `elapsed_ms`, `score`, `checksum`, `worker_pixels` e `cancelled`. `worker_pixels` permite conferir a soma do trabalho entre workers. O checksum resume o estado final dos buffers; como a quantidade e a posição de trabalho dependem do tempo, ele não é um vetor fixo de equivalência com o original.
+Each result contains `mode`, `threads`, `pixels`, `elapsed_ms`, `score`, `checksum`, `worker_pixels`, and `cancelled`. `worker_pixels` lets you check the sum of work across workers. The checksum summarizes the final buffer state; because the amount and position of work depend on timing, it is not a fixed reference vector for equivalence with the original.
 
-Para comparações, preserve os resultados completos e registre commit, compilador, perfil de energia, afinidade e temperatura. Execute várias vezes e compare a dispersão, além da mediana. O par informado pelo usuário foi 523 na CLI Linux e 535 no CPU-Z Windows, cerca de 2,24% de diferença; esse relato isolado não estabelece equivalência.
+For comparisons, keep complete results and record the commit, compiler, power profile, affinity, and temperature. Run multiple repetitions and compare the spread as well as the median. The user reported 523 from the Linux CLI and 535 from CPU-Z on Windows, a difference of about 2.24%; that isolated report does not establish equivalence.
 
-## Documentação da investigação
+## Investigation documentation
 
-- [Investigação completa do 17.01 x64](docs/reverse-engineering.md): artefatos e hashes, extração, classes, ruído simplex, gradientes, campos, pixels, threads, score, interface e exportação.
-- [Índice de evidências](docs/evidence-index.md): Evidence IDs, operações, endereços e limites de cada conclusão.
-- [Metodologia de medição e validação](docs/methodology.md): frequência, turbo, núcleos híbridos, repetições e comparação Windows/Linux.
-- [Arquitetura da implementação](docs/architecture.md): componentes Rust, organização do multi, tempo, contagem, checksum e interface.
-- [Distribuições e instalação](docs/distributions.md): Arch, Ubuntu, Fedora e openSUSE.
-- [Validação executada](docs/validation.md): testes, TUI em pseudo-terminal e resultados nas quatro distribuições.
+The detailed documents below are currently in Portuguese.
 
-A análise cobriu em detalhe o 17.01.SSE x64. As variantes 19.01.SSE, 19.01.AVX2 e 19.01.AVX512 foram identificadas no executável, mas não são implementações anunciadas por esta CLI. A tabela numérica, os pixels de referência e a política completa de encerramento do original ainda precisam de validação.
+- [Full 17.01 x64 investigation](docs/reverse-engineering.md): artifacts and hashes, extraction, classes, simplex noise, gradients, fields, pixels, threads, scoring, interface, and export behavior.
+- [Evidence index](docs/evidence-index.md): Evidence IDs, operations, addresses, and limits of each conclusion.
+- [Measurement and validation methodology](docs/methodology.md): frequency, turbo, hybrid cores, repetitions, and Windows/Linux comparisons.
+- [Implementation architecture](docs/architecture.md): Rust components, multi worker organization, timing, counting, checksum, and interface.
+- [Distributions and installation](docs/distributions.md): Arch, Ubuntu, Fedora, and openSUSE.
+- [Completed validation](docs/validation.md): tests, TUI checks in a pseudo-terminal, and results across the four distributions.
 
-O histórico de engenharia reversa e a implementação informada por ele estão descritos de forma explícita. Este projeto não afirma ter completado um processo clean room com isolamento verificável do implementador.
+The investigation covered 17.01.SSE x64 in detail. The 19.01.SSE, 19.01.AVX2, and 19.01.AVX512 variants were identified in the executable, but this CLI does not claim to implement them. The numerical table, reference pixels, and the original's full end-of-run policy still require validation.
 
-## Licença
+The reverse engineering process and the implementation informed by it are described explicitly. This project does not claim to have completed a clean room process with verifiable isolation of the implementer.
 
-O código deste repositório é distribuído sob [GPL-2.0-only](LICENSE). CPU-Z e CPUID são nomes de seus respectivos titulares. A licença do projeto não concede direitos sobre os executáveis proprietários analisados, que não são distribuídos aqui.
+## License
+
+The code in this repository is distributed under [GPL-2.0-only](LICENSE). CPU-Z and CPUID are names belonging to their respective owners. The project's license does not grant rights to the proprietary executables that were analyzed; those executables are not distributed here.

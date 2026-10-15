@@ -23,7 +23,7 @@ impl Mode {
         match self {
             Self::Single => "Single",
             Self::Multi => "Multi",
-            Self::Both => "Ambos",
+            Self::Both => "Both",
         }
     }
 }
@@ -76,7 +76,7 @@ pub fn run_phase(
     progress: Arc<Progress>,
 ) -> Result<RunResult, String> {
     if mode == Mode::Both {
-        return Err("run_phase aceita somente single ou multi".into());
+        return Err("run_phase accepts only single or multi".into());
     }
     let threads = if mode == Mode::Single { 1 } else { threads };
     if threads == 0
@@ -84,7 +84,7 @@ pub fn run_phase(
         || duration < Duration::from_millis(50)
         || duration > Duration::from_secs(3600)
     {
-        return Err("configuração de benchmark fora dos limites".into());
+        return Err("benchmark configuration is out of range".into());
     }
     let noise = Arc::new(Noise::new());
     let gate = Arc::new((
@@ -170,7 +170,7 @@ pub fn run_phase(
         match spawned {
             Ok(handle) => handles.push(handle),
             Err(error) => {
-                startup_error = Some(format!("falha ao criar worker {worker}: {error}"));
+                startup_error = Some(format!("failed to create worker {worker}: {error}"));
                 break;
             }
         }
@@ -179,7 +179,7 @@ pub fn run_phase(
     if startup_error.is_none() {
         for _ in 0..threads {
             if ready_rx.recv().is_err() {
-                startup_error = Some("worker encerrou durante inicialização".into());
+                startup_error = Some("worker exited during initialization".into());
                 break;
             }
         }
@@ -200,7 +200,7 @@ pub fn run_phase(
         match handle.join() {
             Ok(result) => results.push(result),
             Err(_) => {
-                startup_error.get_or_insert("worker entrou em panic".into());
+                startup_error.get_or_insert("worker panicked".into());
                 cancel.store(true, Ordering::Relaxed);
             }
         }

@@ -86,7 +86,7 @@ impl Screen {
     fn draw(&self, frame: &mut Frame) {
         frame.render_widget(Block::new().style(Style::default().bg(BG)), frame.area());
         if frame.area().width < 64 || frame.area().height < 22 {
-            frame.render_widget(Paragraph::new("CPUZ Linux\n\nAmplie o terminal para pelo menos 64 × 22.\nQ / Esc: sair · C: cancelar").style(Style::default().fg(ACCENT)).wrap(Wrap { trim: true }), frame.area());
+            frame.render_widget(Paragraph::new("CPUZ Linux\n\nResize the terminal to at least 64 × 22.\nQ / Esc: quit · C: cancel").style(Style::default().fg(ACCENT)).wrap(Wrap { trim: true }), frame.area());
             return;
         }
         let area = frame.area().inner(Margin {
@@ -117,10 +117,10 @@ impl Screen {
                             .fg(Color::White)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::styled("   /   laboratório de desempenho", Style::default().fg(DIM)),
+                    Span::styled("   /   performance lab", Style::default().fg(DIM)),
                 ]),
                 Line::from(Span::styled(
-                    " 17.01-style · f32 escalar · pontuação experimental",
+                    " 17.01-style · scalar f32 · experimental scores",
                     Style::default().fg(DIM),
                 )),
             ]),
@@ -139,7 +139,7 @@ impl Screen {
                         .add_modifier(Modifier::BOLD),
                 )),
                 Line::from(format!(
-                    "{}  ·  {} CPUs disponíveis / {} detectadas  ·  {} núcleos físicos",
+                    "{}  ·  {} CPUs available / {} detected  ·  {} physical cores",
                     self.cpu.architecture,
                     self.cpu.logical_available,
                     self.cpu.logical_total,
@@ -147,7 +147,7 @@ impl Screen {
                 )),
             ])
             .style(Style::default().fg(DIM))
-            .block(panel(" PROCESSADOR "))
+            .block(panel(" PROCESSOR "))
             .wrap(Wrap { trim: true }),
             rows[1],
         );
@@ -173,15 +173,15 @@ impl Screen {
             Paragraph::new(vec![
                 Line::from(vec![
                     Span::styled(
-                        format!(" {} s/fase", self.options.seconds),
+                        format!(" {} s/phase", self.options.seconds),
                         Style::default().fg(GOLD),
                     ),
                     Span::raw("   ·   "),
                     Span::styled(
-                        format!("{} workers multi", self.options.threads),
+                        format!("{} multi workers", self.options.threads),
                         Style::default().fg(ACCENT),
                     ),
-                    Span::raw(format!("   ·   razão {ratio}")),
+                    Span::raw(format!("   ·   ratio {ratio}")),
                 ]),
                 Line::from(Span::styled(&self.status, Style::default().fg(DIM))),
             ])
@@ -204,7 +204,7 @@ impl Screen {
                 format!("{phase}  {elapsed:.1}/{seconds:.1}s  ·  {pixels} pixels"),
             )
         } else {
-            (0.0, "Pronto para medir".into())
+            (0.0, "Ready to benchmark".into())
         };
         frame.render_widget(
             Gauge::default()
@@ -213,7 +213,7 @@ impl Screen {
                 .gauge_style(Style::default().fg(ACCENT).bg(Color::Rgb(35, 47, 62))),
             middle[1],
         );
-        frame.render_widget(Paragraph::new("S single   M multi   B ambos   +/− workers   [/] segundos\nC cancelar   Q / Esc sair   ·   resultados variam com frequência e carga").style(Style::default().fg(DIM)).block(panel(" CONTROLES ")), rows[4]);
+        frame.render_widget(Paragraph::new("S single   M multi   B both   +/− workers   [/] seconds\nC cancel   Q / Esc quit   ·   scores vary with frequency and load").style(Style::default().fg(DIM)).block(panel(" CONTROLS ")), rows[4]);
     }
 
     fn result_card(
@@ -231,10 +231,10 @@ impl Screen {
                     "{} threads · {} ms{}",
                     r.threads,
                     r.elapsed_ms,
-                    if r.cancelled { " · parcial" } else { "" }
+                    if r.cancelled { " · partial" } else { "" }
                 ),
             ),
-            None => ("—".into(), "Aguardando execução".into()),
+            None => ("—".into(), "Not run yet".into()),
         };
         frame.render_widget(
             Paragraph::new(vec![
@@ -248,7 +248,7 @@ impl Screen {
                     Style::default().fg(DIM),
                 )),
                 Line::from(Span::styled(
-                    "  pixels / milissegundo",
+                    "  pixels / millisecond",
                     Style::default().fg(DIM),
                 )),
             ])
@@ -278,7 +278,7 @@ pub fn run(options: Options, cpu: CpuInfo) -> io::Result<()> {
             single: None,
             multi: None,
             active: None,
-            status: "Selecione S, M ou B para iniciar.".into(),
+            status: "Press S, M or B to start.".into(),
         };
         loop {
             if let Some(active) = &screen.active {
@@ -292,9 +292,9 @@ pub fn run(options: Options, cpu: CpuInfo) -> io::Result<()> {
                             }
                         }
                         screen.status = if active.cancel.load(Ordering::Relaxed) {
-                            "Cancelado; resultado parcial identificado.".into()
+                            "Cancelled; partial result shown.".into()
                         } else {
-                            "Medição concluída. Execute novamente para comparar.".into()
+                            "Measurement complete. Run again to compare.".into()
                         };
                         screen.active = None;
                     }
@@ -303,7 +303,7 @@ pub fn run(options: Options, cpu: CpuInfo) -> io::Result<()> {
                         screen.active = None;
                     }
                     Err(mpsc::TryRecvError::Disconnected) => {
-                        screen.status = "Coordenador encerrou sem resultado.".into();
+                        screen.status = "Coordinator exited without a result.".into();
                         screen.active = None;
                     }
                     Err(mpsc::TryRecvError::Empty) => {}
@@ -327,7 +327,7 @@ pub fn run(options: Options, cpu: CpuInfo) -> io::Result<()> {
             if matches!(key.code, KeyCode::Char('c' | 'C')) {
                 if let Some(active) = &screen.active {
                     active.cancel.store(true, Ordering::Relaxed);
-                    screen.status = "Cancelando após a unidade de trabalho atual…".into();
+                    screen.status = "Cancelling after the current work unit…".into();
                 }
                 continue;
             }
@@ -359,7 +359,7 @@ pub fn run(options: Options, cpu: CpuInfo) -> io::Result<()> {
             if let Some(mode) = mode {
                 screen.active = Some(ActiveRun::start(mode, &screen.options)?);
                 screen.status = format!(
-                    "Preparando {} · a medição começa após inicializar os workers.",
+                    "Preparing {} · timing starts after worker initialization.",
                     mode.label()
                 );
             }
@@ -382,7 +382,7 @@ mod tests {
             single: None,
             multi: None,
             active: None,
-            status: "Pronto".into(),
+            status: "Ready".into(),
         };
         let mut terminal =
             ratatui::Terminal::new(ratatui::backend::TestBackend::new(80, 26)).unwrap();
@@ -428,7 +428,7 @@ mod tests {
         let width = u32::from(buffer.area.width) * 9 + 32;
         let height = u32::from(buffer.area.height) * 20 + 32;
         let mut svg = format!(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><title>CPUZ Linux: renderização da TUI em repouso</title><rect width=\"100%\" height=\"100%\" rx=\"12\" fill=\"#111823\"/><g font-family=\"DejaVu Sans Mono,monospace\" font-size=\"14\">"
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><title>CPUZ Linux: idle terminal interface</title><rect width=\"100%\" height=\"100%\" rx=\"12\" fill=\"#111823\"/><g font-family=\"DejaVu Sans Mono,monospace\" font-size=\"14\">"
         );
         for y in 0..buffer.area.height {
             for x in 0..buffer.area.width {

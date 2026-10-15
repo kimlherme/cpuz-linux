@@ -37,11 +37,11 @@ fn execute() -> Result<(), String> {
     }
     if !options.json {
         println!(
-            "CPUZ Linux · experimental 17.01-style\nCPU: {}\nCPUs disponíveis: {} / {}\n",
+            "CPUZ Linux · experimental 17.01-style\nCPU: {}\nAvailable CPUs: {} / {}\n",
             cpu.model, cpu.logical_available, cpu.logical_total
         );
         if cfg!(debug_assertions) {
-            eprintln!("Compilação debug: use --release para medir desempenho.");
+            eprintln!("Debug build: use --release to measure performance.");
         }
     }
     let results = bench::run(
@@ -69,7 +69,7 @@ fn execute() -> Result<(), String> {
     } else {
         for result in &results {
             println!(
-                "{}: {:.1}\nThreads: {}\nPixels contados: {}\nTempo: {} ms\nChecksum: {}\n",
+                "{}: {:.1}\nThreads: {}\nCounted pixels: {}\nElapsed: {} ms\nChecksum: {}\n",
                 result.mode.label(),
                 result.score,
                 result.threads,
@@ -81,7 +81,7 @@ fn execute() -> Result<(), String> {
         if let Some(ratio) = ratio {
             println!("Multi / single: {ratio:.2}x");
         }
-        println!("Score experimental; equivalência com CPU-Z não validada.");
+        println!("Experimental score; equivalence with CPU-Z has not been validated.");
     }
     Ok(())
 }
@@ -90,7 +90,7 @@ fn main() -> ExitCode {
     match execute() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("Erro: {error}\nUse --help para consultar as opções.");
+            eprintln!("Error: {error}\nUse --help to see available options.");
             ExitCode::from(2)
         }
     }
