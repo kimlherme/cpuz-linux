@@ -1,0 +1,73 @@
+name: Linux builds and packages
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  distributions:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu
+            image: ubuntu:24.04
+            setup: apt-get update && apt-get install -y build-essential curl git ca-certificates python3
+          - name: arch
+            image: archlinux:latest
+            setup: pacman -Syu --noconfirm --needed base-devel curl git python
+          - name: fedora
+            image: fedora:44
+            setup: dnf install -y gcc make curl git ca-certificates python3 rpm-build
+          - name: opensuse
+            image: opensuse/tumbleweed:latest
+            setup: zypper --non-interactive install gcc make curl git ca-certificates python3 rpm-build tar gzip
+    container: ${{ matrix.image }}
+    name: ${{ matrix.name }}
+    steps:
+      - name: Install build prerequisites
+        run: ${{ matrix.setup }}
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.0'
+          components: rustfmt,clippy
+      - name: Format, tests and lint
+        run: |
+          cargo fmt --check
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+      - name: Optimized build and smoke test
+        run: |
+          cargo build --release --locked
+          python3 scripts/test-tui.py
+          ./target/release/cpuz-linux --mode both --seconds 0.2 --threads 2 --json > smoke.json
+          python3 -c 'import json; x=json.load(open("smoke.json")); assert len(x["results"]) == 2; assert all(r["pixels"] > 0 for r in x["results"])'
+      - name: User-prefix installation and removal
+        run: |
+          ./scripts/install.sh --prefix /tmp/cpuz-prefix
+          /tmp/cpuz-prefix/bin/cpuz-linux --help
+          ./scripts/install.sh --prefix /tmp/cpuz-prefix --uninstall
+          test ! -e /tmp/cpuz-prefix/bin/cpuz-linux
+      - name: Ubuntu package
+        if: matrix.name == 'ubuntu'
+        run: |
+          ./scripts/package.sh deb
+          dpkg-deb --info dist/*.deb
+      - name: RPM package
+        if: matrix.name == 'fedora' || matrix.name == 'opensuse'
+        run: |
+          ./scripts/package.sh rpm
+          rpm -qp --info dist/*.rpm
+      - name: Arch recipe syntax
+        if: matrix.name == 'arch'
+        run: bash -n packaging/arch/PKGBUILD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpuz-linux-${{ matrix.name }}
+          path: |
+            dist/*
+            smoke.json
+          if-no-files-found: error

@@ -1,0 +1,43 @@
+# Build this VCS package with makepkg as a normal user.
+pkgname=cpuz-linux-git
+pkgver=0.2.0.r0
+pkgrel=1
+pkgdesc='Experimental Rust CPU benchmark with single/multi tests and a terminal UI'
+arch=('x86_64' 'aarch64')
+url='https://github.com/kimlherme/cpuz-linux'
+license=('GPL-2.0-only')
+depends=('glibc' 'gcc-libs')
+makedepends=('git' 'rust')
+provides=('cpuz-linux')
+conflicts=('cpuz-linux')
+source=('cpuz-linux::git+https://github.com/kimlherme/cpuz-linux.git')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/cpuz-linux"
+  printf '0.2.0.r%s.g%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$srcdir/cpuz-linux"
+  cargo fetch --locked
+}
+
+build() {
+  cd "$srcdir/cpuz-linux"
+  cargo build --release --locked --offline
+}
+
+check() {
+  cd "$srcdir/cpuz-linux"
+  cargo test --locked --offline
+}
+
+package() {
+  cd "$srcdir/cpuz-linux"
+  install -Dm755 target/release/cpuz-linux "$pkgdir/usr/bin/cpuz-linux"
+  install -Dm644 packaging/cpuz-linux.1 "$pkgdir/usr/share/man/man1/cpuz-linux.1"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  for doc in docs/*; do [ -f "$doc" ] || continue; install -Dm644 "$doc" "$pkgdir/usr/share/doc/$pkgname/docs/$(basename "$doc")"; done
+}

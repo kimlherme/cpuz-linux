@@ -1,0 +1,53 @@
+.TH CPUZ-LINUX 1 "October 2026" "0.2.0" "User Commands"
+.SH NAME
+cpuz-linux \- experimental single and multi thread CPU benchmark
+.SH SYNOPSIS
+.B cpuz-linux
+[\fB--tui\fR] [\fB--mode single|multi|both\fR]
+[\fB--seconds N\fR] [\fB--threads auto|N\fR] [\fB--json\fR]
+.SH DESCRIPTION
+Runs a scalar float32 procedural-noise workload based on static investigation
+of CPU-Z 17.01 x64. This is experimental software, not an official CPU-Z port.
+Without arguments, opens the TUI if stdin and stdout are terminals; otherwise
+runs a 10-second single test. Scores count completed pixels per millisecond.
+.SH OPTIONS
+.TP
+.B --tui
+Open interactive terminal interface. Requires a TTY.
+.TP
+.B --no-tui
+Use text output.
+.TP
+.B --mode single|multi|both
+Select the test. Both runs multi followed by single, each for the requested time.
+.TP
+.B --seconds N
+Duration per phase, from 0.05 to 3600. Default 10.
+.TP
+.B --threads auto|N
+Multi workers, from 1 to 256. Default: available CPUs, capped at 256.
+Single always uses one compute worker.
+.TP
+.B --json
+Emit a structured JSON report and disable the TUI.
+.TP
+.B --help
+Show help and exit.
+.SH KEYS
+S single, M multi, B both, + and - adjust workers, [ and ] adjust seconds,
+C cancels, Q or Escape exits. Ctrl+C cancels and exits.
+.SH MEASUREMENT
+All multi workers share a start and deadline. Sum counted pixels and divide
+by common elapsed integer milliseconds. Initialization and checksums are
+outside timing. No reference CPU normalization is applied.
+.SH LIMITATIONS
+Numerical and performance equivalence with CPU-Z has not been established.
+Linux scheduling, libm, compiler output, affinity, power and thermal state
+can change results. Multi is a Linux adaptation of the inspected workload.
+.SH EXIT STATUS
+0 success; 2 invalid arguments, terminal errors or benchmark failures.
+.SH SEE ALSO
+.BR taskset (1),
+.BR lscpu (1)
+.SH PROJECT
+https://github.com/kimlherme/cpuz-linux

@@ -1,278 +1,199 @@
-# CPU-Z-like Benchmark for Linux
+# CPUZ Linux
 
-A C++17 command-line benchmark that reproduces part of the workload format used
-by the CPU test in CPU-Z 19.01. It measures how many pixels per second the
-software-rendered workload can process.
+Benchmark de CPU em Rust para Linux, com interface no terminal, testes single e multi e identificação do processador em uso.
 
-This is an independent scalar implementation. The full details of the original
-algorithm were not recovered, so this project is useful for experimentation
-and comparing runs of this implementation. Its score is not an official CPU-Z
-score and should not be compared directly with the score shown by CPU-Z.
+**Experimental:** a carga foi reconstruída a partir da investigação do 17.01.SSE x64; equivalência numérica e de pontuação com o CPU-Z ainda não foi demonstrada. Este projeto não é afiliado à CPUID.
 
-## Contents
+![Prévia ilustrativa da interface no terminal](docs/tui-preview.svg)
 
-- [Requirements](#requirements)
-- [Build](#build)
-- [NixOS](#nixos)
-- [Run](#run)
-- [Interactive terminal UI](#interactive-terminal-ui)
-- [Options](#options)
-- [Understanding the output](#understanding-the-output)
-- [How the benchmark works](#how-the-benchmark-works)
-- [Limitations and comparing results](#limitations-and-comparing-results)
-- [Troubleshooting](#troubleshooting)
+## Começar
 
-## Requirements
+Com Rust estável recente, Git e compilador/linker instalados:
 
-- Linux
-- A C++ compiler with C++17 support, such as GCC or Clang
-- `make` (optional; you can also compile with a direct command)
-- POSIX thread support, usually provided by the Linux standard library
+```bash
+git clone https://github.com/kimlherme/cpuz-linux.git
+cd cpuz-linux
+cargo build --release --locked
+./target/release/cpuz-linux
+```
 
-On Debian or Ubuntu, install the build tools with:
+Sem argumentos, em um terminal interativo, o programa abre a TUI. Pressione **S** para single, **M** para multi ou **B** para executar ambos. O nome da CPU, arquitetura, CPUs disponíveis e núcleos físicos detectados aparecem no painel superior.
 
-```sh
+Use release para medir desempenho. O build debug tem características de otimização diferentes e não serve como comparação de score com release.
+
+## Interface
+
+A TUI mostra cartões de single e multi, tempo decorrido, quantidade de trabalho, número de workers e razão multi/single. As configurações podem ser ajustadas enquanto não houver medição ativa.
+
+| Tecla | Ação |
+| --- | --- |
+| `S` | Executar single com uma thread |
+| `M` | Executar multi com o número de workers selecionado |
+| `B` | Executar multi e depois single |
+| `+` / `-` | Aumentar / reduzir workers do multi |
+| `[` / `]` | Reduzir / aumentar duração por fase |
+| `C` | Cancelar a medição atual; resultado fica identificado como parcial |
+| `Q` / `Esc` | Sair |
+| `Ctrl+C` | Cancelar e sair |
+
+O terminal deve ter pelo menos 64 colunas e 22 linhas para mostrar o painel completo. Em tamanhos menores, a aplicação pede para ampliar a janela. As threads em andamento são finalizadas antes da restauração do terminal; cancelamento pode esperar o término da unidade atual.
+
+A imagem acima é uma prévia ilustrativa do layout. Ela não representa uma medição de uma CPU de referência.
+
+## Usar sem interface
+
+```bash
+# Single: uma thread, dez segundos
+cpuz-linux --mode single --seconds 10 --no-tui
+
+# Multi: CPUs disponíveis ao processo
+cpuz-linux --mode multi --threads auto --seconds 10
+
+# Multi com oito workers, depois single com uma thread
+cpuz-linux --mode both --threads 8 --seconds 10
+
+# JSON para guardar e analisar resultados
+cpuz-linux --mode both --threads auto --seconds 10 --json > resultado.json
+
+# Abrir TUI com configurações iniciais
+cpuz-linux --tui --threads 4 --seconds 15
+
+# Ajuda
+cpuz-linux --help
+```
+
+Quando `cpuz-linux` ainda não estiver no PATH, use `./target/release/cpuz-linux` nos exemplos.
+
+### Opções
+
+| Opção | Valores | Padrão |
+| --- | --- | --- |
+| `--mode` | `single`, `multi`, `both` | `single` |
+| `--seconds` | Número entre `0.05` e `3600` | `10` por fase |
+| `--threads` | `auto` ou inteiro entre `1` e `256` | CPUs disponíveis ao processo, limitado a 256 |
+| `--tui` | Abre interface interativa | Ativada sem argumentos quando stdin/stdout são terminais |
+| `--no-tui` | Saída de texto | Ativada fora da abertura automática da TUI |
+| `--json` | Objeto JSON, sem TUI | Desativado |
+| `-h`, `--help` | Mostra ajuda | — |
+
+`--threads` configura o multi; single sempre usa um worker. `both` executa duas fases: multi e depois single. Com `--seconds 10`, são aproximadamente vinte segundos de medição, além da preparação e finalização.
+
+Sem argumentos e sem terminal, o programa executa single por dez segundos. `--tui` precisa de stdin e stdout ligados a um terminal e não pode ser combinado com `--json` ou `--no-tui`. Valores inválidos produzem mensagem de erro e código de saída 2.
+
+A TUI aguarda uma tecla de execução. `--mode` não dispara automaticamente um teste ao abrir a interface; as teclas S/M/B escolhem o que executar.
+
+## Instalação nas distribuições
+
+O projeto usa Rust edition 2024 e exige Rust 1.88 ou posterior. As dependências da aplicação são Rust; a compilação requer também ferramentas nativas para linkar o binário. Os caminhos abaixo atendem Arch Linux, Ubuntu, Fedora e openSUSE. Consulte [distribuições](docs/distributions.md) para empacotamento e detalhes.
+
+### Arch Linux
+
+```bash
+sudo pacman -S --needed base-devel git curl rustup
+rustup default stable
+```
+
+### Ubuntu
+
+```bash
 sudo apt update
-sudo apt install build-essential
+sudo apt install build-essential git curl ca-certificates
 ```
 
-## Build
+Instale um Rust estável recente pelo procedimento universal abaixo se a versão disponível no sistema for anterior à 1.88. A versão de Rust dos repositórios depende da versão do Ubuntu.
 
-From the repository root:
+### Fedora
 
-```sh
-make
+```bash
+sudo dnf install gcc git curl
 ```
 
-This creates the `cpu-z-bench-linux` executable. To compile without `make`:
+Use um toolchain Rust recente do sistema ou o procedimento universal abaixo.
 
-```sh
-g++ -O3 -std=c++17 -Wall -Wextra -Wpedantic -ffp-contract=off -pthread \
-  cpu-z-bench-linux.cpp -o cpu-z-bench-linux
+### openSUSE
+
+```bash
+sudo zypper install gcc git curl
 ```
 
-Remove the generated executable with:
+Use um toolchain Rust recente do sistema ou o procedimento universal abaixo. A disponibilidade e versão de pacotes Rust variam entre Leap e Tumbleweed.
 
-```sh
-make clean
+### Rust estável com rustup
+
+O instalador oficial está em [rustup.rs](https://rustup.rs/). Para baixar o script, examiná-lo e então executá-lo:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/cpuz-rustup-init.sh
+less /tmp/cpuz-rustup-init.sh
+sh /tmp/cpuz-rustup-init.sh --profile minimal --default-toolchain stable
+. "$HOME/.cargo/env"
+rustc --version
 ```
 
-## NixOS
+Se já usa rustup, atualize seu toolchain estável com `rustup update stable`. O arquivo `rust-toolchain.toml` seleciona o canal utilizado pelo projeto.
 
-With flakes enabled, enter a development shell that provides GCC and GNU Make,
-then build as usual:
+### Instalar no usuário
 
-```sh
-nix develop
-make
-./cpu-z-bench-linux --help
+Depois de clonar o repositório e entrar na pasta:
+
+```bash
+./scripts/install.sh --prefix "$HOME/.local"
 ```
 
-To build the packaged executable instead:
+O instalador compila com `--release --locked` e instala o executável, documentação e manual no prefixo selecionado. Garanta que `$HOME/.local/bin` esteja no PATH; depois execute `cpuz-linux`.
 
-```sh
-nix build
-./result/bin/cpu-z-bench-linux --help
+Para remover os arquivos instalados nesse prefixo:
+
+```bash
+./scripts/install.sh --prefix "$HOME/.local" --uninstall
 ```
 
-You can also run it directly from the flake without creating `result`:
+Os scripts e receitas de pacote estão no repositório. Ter um caminho de instalação documentado não significa que cada versão de cada distribuição tenha sido executada manualmente; consulte os resultados concretos de CI e o estado de validação.
 
-```sh
-nix run . -- --help
-```
+## O que o score mede
 
-For a system without flakes enabled, `shell.nix` and `default.nix` are also
-provided. With Nixpkgs available through `<nixpkgs>`, use:
-
-```sh
-nix-shell
-make
-```
-
-Or build the package with `nix-build`:
-
-```sh
-nix-build
-./result/bin/cpu-z-bench-linux --help
-```
-
-`nix develop`, `nix build`, and `nix run` use the `nixpkgs` input in
-`flake.nix`; the first flake command resolves that input if no `flake.lock`
-exists yet.
-
-## Run
-
-With no arguments, the program runs a 10-second single-threaded benchmark:
-
-```sh
-./cpu-z-bench-linux
-```
-
-Examples with an explicit mode and duration:
-
-```sh
-# Single-threaded for 10 seconds
-./cpu-z-bench-linux --mode single --duration-ms 10000
-
-# Multi-threaded using the CPUs allowed to this process
-./cpu-z-bench-linux --mode multi --duration-ms 10000 --threads auto
-
-# Multi-threaded with 4 workers
-./cpu-z-bench-linux --mode multi --duration-ms 10000 --threads 4
-
-# Run multi-threaded, then single-threaded, for 5 seconds each
-./cpu-z-bench-linux --mode both --duration-ms 5000 --threads 4
-```
-
-Show the built-in help with:
-
-```sh
-./cpu-z-bench-linux --help
-```
-
-## Interactive terminal UI
-
-Choose settings and start runs from a terminal menu:
-
-```sh
-./cpu-z-bench-linux --tui
-```
-
-In the menu, `m` cycles through single, multi, and both modes; `d` sets the
-duration in milliseconds; `w` sets the worker count or `auto`; `r` starts a
-run; `h` shows the controls; and `q` exits. The menu returns after each run.
-The selected duration applies separately to each mode, and each run performs a
-150 ms warmup before the timer starts.
-
-You can also provide initial settings when opening the menu:
-
-```sh
-./cpu-z-bench-linux --tui --mode both --duration-ms 3000 --threads auto
-```
-
-The interface uses standard terminal input and output, requires no extra
-dependencies, and needs an interactive terminal session.
-
-## Options
-
-| Option | Values | Default | Description |
-|---|---|---|---|
-| `--mode` | `single`, `multi`, or `both` | `single` | Select single-threaded, multi-threaded, or both runs. |
-| `--duration-ms` | `1` to `86400000` | `10000` | Approximate measured duration of each run, in milliseconds. |
-| `--threads` | `auto` or `1` to `1024` | `auto` | Number of workers for multi-threaded runs. Ignored in `single` mode. |
-| `--tui` | — | disabled | Open the interactive terminal menu. |
-| `--help`, `-h` | — | — | Show the available options. |
-
-### Modes
-
-- `single`: processes frames with one thread. This is the default and is most
-  useful for observing the performance of one logical CPU.
-- `multi`: splits image rows among the workers and measures parallel processing.
-  It does not also run the single-threaded test.
-- `both`: runs the multi-threaded test first, waits 10 ms, then runs the
-  single-threaded test. The selected duration applies to each run separately.
-
-In multi-threaded mode, `--threads auto` uses the number of CPUs in the
-process's affinity mask when Linux provides it. If affinity cannot be queried,
-the program uses the count reported by the standard library. `auto` does not
-detect CPU quota limits that are not reflected in the affinity mask.
-
-## Understanding the output
-
-Each run reports elapsed time, the number of fully processed pixels, throughput
-in pixels per second, and a score on the approximate CPU-Z 19.01 scale:
+A unidade recuperada para o single 17.01 x64 é **pixels contabilizados por milissegundo**. Cada pixel envolve 34 avaliações de ruído 2D, além da composição de cores.
 
 ```text
-Single-thread:
-  CPU: Intel(R) ...
-  reported clock (/proc/cpuinfo): 3400.0-4100.0 MHz
-  elapsed: ... s
-  pixels: ...
-  pixels/s: ...
-  19.01-scale score (pixels/s / 10000): ...
+score = float32(pixels contabilizados) / float32(tempo medido em ms inteiros)
 ```
 
-The metrics are calculated as follows:
+500 pontos correspondem aproximadamente a 500 mil pixels por segundo dessa carga. O cálculo é na CPU; os pontos não são frames da GPU nem GHz. No caminho absoluto da interface original inspecionado, a pontuação é mostrada com uma casa decimal, sem fator de calibração por uma CPU-base.
 
-```text
-pixels/s = processed pixels / elapsed time in seconds
-scale score = pixels/s / 10,000
-```
+O multi executa a carga de verdade em várias threads e soma seu trabalho aceito. A razão multi/single é o score multi dividido pelo single. Ela depende também de turbo, temperatura, SMT e limites de energia.
 
-Each image position is counted once. The count is not multiplied by the four
-RGBA channels, the noise layers, or the number of internal operations.
+Cada worker utiliza um buffer privado de 4 MiB, além das demais estruturas. Muitos workers aumentam consumo de memória e competição por recursos; 256 workers representam aproximadamente 1 GiB apenas em buffers. O limite aceito pela interface não é uma recomendação de desempenho.
 
-Results vary with the processor, clock speed, temperature, system load, virtual
-machine or container limits, and selected duration. The score is rounded to one
-decimal place, so check `pixels/s` when comparing small differences.
+## JSON e automação
 
-The CPU model comes from the `model name` field in `/proc/cpuinfo`. The reported
-clock is the range of available `cpu MHz` values from that file, read after each
-run. It is an informational sample, can vary between CPUs, and may be
-unavailable in virtual machines.
+`--json` escreve um objeto com `schema_version: 1`. Os campos principais são:
 
-## How the benchmark works
+| Campo | Conteúdo |
+| --- | --- |
+| `algorithm` | Identificador da carga implementada |
+| `experimental` | Estado experimental |
+| `cpu` | Modelo, arquitetura e contagem de CPUs |
+| `configuration` | Configuração interpretada da execução |
+| `results` | Uma entrada por fase executada |
+| `multi_single_ratio` | Razão quando há single e multi válidos; `null` caso contrário |
 
-Before each measured run, the program performs a 150 ms warmup using the same
-mode and worker count. Warmup work is excluded from the reported pixel count
-and elapsed time. This helps the processor move out of its idle state,
-especially during short runs.
+Cada resultado contém `mode`, `threads`, `pixels`, `elapsed_ms`, `score`, `checksum`, `worker_pixels` e `cancelled`. `worker_pixels` permite conferir a soma do trabalho entre workers. O checksum resume o estado final dos buffers; como a quantidade e a posição de trabalho dependem do tempo, ele não é um vetor fixo de equivalência com o original.
 
-The program creates a deterministic table of 4096 values before measurement.
-It then processes 1024 × 1024 pixel images. For each pixel, it computes two
-simplex-style 2D noise compositions: one with 10 layers and one with 7. The
-results are converted into four color channels (RGBA) and written to a buffer.
+Para comparações, preserve os resultados completos e registre commit, compilador, perfil de energia, afinidade e temperatura. Execute várias vezes e compare a dispersão, além da mediana. O par informado pelo usuário foi 523 na CLI Linux e 535 no CPU-Z Windows, cerca de 2,24% de diferença; esse relato isolado não estabelece equivalência.
 
-In single-threaded mode, one thread processes the entire image. In
-multi-threaded mode, workers receive separate row ranges and synchronize between
-frames. Thread and buffer setup happens before the timed interval.
+## Documentação da investigação
 
-The program stops when the selected duration ends and counts only completed
-rows. The actual duration may therefore vary slightly around the selected
-value because the timer is checked while processing rows.
+- [Investigação completa do 17.01 x64](docs/reverse-engineering.md): artefatos e hashes, extração, classes, ruído simplex, gradientes, campos, pixels, threads, score, interface e exportação.
+- [Índice de evidências](docs/evidence-index.md): Evidence IDs, operações, endereços e limites de cada conclusão.
+- [Metodologia de medição e validação](docs/methodology.md): frequência, turbo, núcleos híbridos, repetições e comparação Windows/Linux.
+- [Arquitetura da implementação](docs/architecture.md): componentes Rust, organização do multi, tempo, contagem, checksum e interface.
+- [Distribuições e instalação](docs/distributions.md): Arch, Ubuntu, Fedora e openSUSE.
+- [Validação executada](docs/validation.md): testes, TUI em pseudo-terminal e resultados nas quatro distribuições.
 
-## Limitations and comparing results
+A análise cobriu em detalhe o 17.01.SSE x64. As variantes 19.01.SSE, 19.01.AVX2 e 19.01.AVX512 foram identificadas no executável, mas não são implementações anunciadas por esta CLI. A tabela numérica, os pixels de referência e a política completa de encerramento do original ainda precisam de validação.
 
-This version was reconstructed from static analysis of the CPU-Z 19.01 test
-path. The analysis did not recover every detail of the table, hash, composition
-formulas, or color conversion, so these parts are approximations. This
-implementation also uses a scalar kernel and does not include CPU-Z's SSE,
-AVX2, or AVX-512 SIMD paths.
+O histórico de engenharia reversa e a implementação informada por ele estão descritos de forma explícita. Este projeto não afirma ter completado um processo clean room com isolamento verificável do implementador.
 
-For these reasons, `19.01-scale score` identifies only the scale used to
-convert throughput; it does not make the results equivalent to the official
-score. A score of `163.8`, for example, means this implementation measured
-about 1,638,000 pixels/s. It does not mean the official CPU-Z score on the same
-processor would be 163.8.
+## Licença
 
-To compare changes to this program, use the same machine, mode, duration, and
-thread count. When possible, run it more than once under similar conditions
-and compare `pixels/s`. Close heavy background tasks, and record whether the
-benchmark ran on physical hardware, in a virtual machine, or in a container. In
-virtualized environments, visible CPUs and host-enforced quotas can limit the
-results.
-
-## Troubleshooting
-
-### `g++: command not found` or `make: command not found`
-
-Install the compiler and build tools for your distribution. On Debian or Ubuntu,
-run `sudo apt install build-essential`.
-
-### `Unknown option` or invalid value
-
-Use `--help` to check the syntax. `--duration-ms` accepts values from 1 to
-86400000; `--threads` accepts `auto` or values from 1 to 1024.
-
-### Results differ between runs
-
-Differences can come from CPU frequency and temperature changes, system load,
-affinity, virtual machine quotas, or resource contention. Repeat the benchmark
-under similar conditions before interpreting small differences.
-
-## Project status
-
-This is an experimental, independent Linux benchmark. It is not an official
-implementation and is not affiliated with CPUID, the maker of CPU-Z. This
-project is licensed under the GNU General Public License, version 2
-(GPL-2.0-only); see [LICENSE](LICENSE).
+O código deste repositório é distribuído sob [GPL-2.0-only](LICENSE). CPU-Z e CPUID são nomes de seus respectivos titulares. A licença do projeto não concede direitos sobre os executáveis proprietários analisados, que não são distribuídos aqui.
